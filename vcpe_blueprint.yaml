@@ -1,0 +1,138 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+
+  - http://www.getcloudify.org/spec/cloudify/3.4/types.yaml 
+  - http://www.getcloudify.org/spec/openstack-plugin/1.5/plugin.yaml 
+  - http://www.getcloudify.org/spec/diamond-plugin/1.3.3/plugin.yaml 
+  - types/labs.yaml
+  - types/openvpn.yaml
+
+inputs:
+
+  image_id:
+    type: string
+    default: 'aee5438f-1c7c-497f-a11e-53360241cf0f'
+
+  flavor_id:
+    type: string
+    default: '4d798e17-3439-42e1-ad22-fb956ec22b54'
+
+  agent_user:
+    type: string
+    default: 'centos'
+
+  def_security_group_name:
+    type: string
+    default: 'lab_sg'
+
+node_templates:
+
+
+  vpn_floating_ip:
+    type: cloudify.openstack.nodes.FloatingIP
+
+  def_security_group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      use_external_resource: False
+      security_group:
+        description: Security group for Riemman RabbitMQ VMs
+      rules:
+        - port: 22
+          remote_ip_prefix: '0.0.0.0/0'
+
+
+#
+#  Infra.
+#
+
+  generic_vnf:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      server:
+        image: { get_input: image_id }
+        flavor: { get_input: flavor_id }
+      cloudify_agent:
+        user: { get_input: agent_user }
+    relationships:
+      - target: vpn_floating_ip
+        type: cloudify.openstack.server_connected_to_floating_ip
+      - target: def_security_group
+        type: cloudify.openstack.server_connected_to_security_group
+
+#  filter_vfn:
+#    type: cloudify.openstack.nodes.Server
+#    properties:
+#      server:
+#        image: { get_input: image_id }
+#        flavor: { get_input: flavor_id }
+#     cloudify_agent:
+#       user: { get_input: agent_user }
+#   relationships:
+#     - target: def_security_group
+#       type: cloudify.openstack.server_connected_to_security_group
+#     - target: openvpn_vfn
+#       type: cloudify.openstack.server_connected_to_security_group
+
+
+#  router_vfn:
+#    type: cloudify.openstack.nodes.Server
+#    properties:
+#      server:
+#        image: { get_input: image_id }
+#        flavor: { get_input: flavor_id }
+#      cloudify_agent:
+#        user: { get_input: agent_user }
+#    relationships:
+#      - target: def_security_group
+#        type: cloudify.openstack.server_connected_to_security_group
+
+#
+#  Components
+#
+
+  tunnel:
+    type: labs.networking.sshtunnel
+    relationships:
+      - target: generic_vnf
+        type: cloudify.relationships.contained_in
+
+
+  vpn:
+    type: openvpn.server.openvpnsrv
+    relationships:
+      - target: generic_vnf
+        type: cloudify.relationships.contained_in
+      - target: tunnel
+        type: cloudify.relationships.connected_to
+
+  filter:
+    type: cloudify.nodes.ApplicationModule
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        start:
+          implementation: scripts/filter_start.sh
+        stop:
+          implementation: scripts/filter_stop.sh
+    relationships:
+      - target: generic_vnf
+        type: cloudify.relationships.contained_in
+
+
+
+  router:
+    type: cloudify.nodes.ApplicationModule
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        start:
+          implementation: scripts/router_start.sh
+    relationships:
+      - target: generic_vnf
+        type: cloudify.relationships.contained_in
+      - target: vpn
+        type: cloudify.relationships.connected_to
+
+
+
+

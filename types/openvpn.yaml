@@ -1,0 +1,10 @@
+node_types:
+
+  openvpn.server.openvpnsrv:
+    derived_from: cloudify.nodes.ApplicationModule
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/vpn_create.sh
+        configure:
+          implementation: scripts/vpn_configure.sh
