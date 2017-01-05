@@ -26,6 +26,10 @@ inputs:
     type: string
     default: 'lab_sg'
 
+  filter_keyword:
+    type: string
+    default: 'gambling'
+
 node_templates:
 
 
@@ -37,7 +41,7 @@ node_templates:
     properties:
       use_external_resource: False
       security_group:
-        description: Security group for Riemman RabbitMQ VMs
+        description: VCPE security security group
       rules:
         - port: 22
           remote_ip_prefix: '0.0.0.0/0'
@@ -113,8 +117,13 @@ node_templates:
       cloudify.interfaces.lifecycle:
         start:
           implementation: scripts/filter_start.sh
+          inputs:
+            filter_keyword: { get_input: filter_keyword }
         stop:
           implementation: scripts/filter_stop.sh
+          inputs:
+            filter_keyword: { get_input: filter_keyword }
+
     relationships:
       - target: generic_vnf
         type: cloudify.relationships.contained_in
