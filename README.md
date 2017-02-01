@@ -2,7 +2,8 @@
 
 #Configure Openvpn
 
-Download base on the client.ovpn configuration, and place replace [lab ip] with ip of the lab found at outputs
+Download from github end_point.ovpn openvpn configuration, replace [lab ip] with the ip of the lab, it's found at outputs
+
 Please note that port 1111 shoulb be open in the firewall
 
 Before connecting to the vpn search "what is my ip", show the IP address
